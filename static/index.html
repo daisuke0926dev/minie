@@ -1,0 +1,66 @@
+<meta charset="UTF-8" />
+<title>minie</title>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.13.1/dist/ort.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad/dist/index.browser.js"></script>
+<script type="module">
+ try {
+   const myvad = await vad.MicVAD.new({
+     positiveSpeechThreshold: 0.8,
+     negativeSpeechThreshold: 0.8 - 0.15,
+     minSpeechFrames: 5,
+     preSpeechPadFrames: 1,
+     redemptionFrames: 10,
+     onSpeechEnd: async (arr) => {
+       const wavBuffer = vad.utils.encodeWAV(arr)
+       var file = new File([wavBuffer], `file${Date.now()}.wav`)
+       let formData = new FormData()
+       formData.append("file", file)
+       try {
+        //whisper 
+        const res_talk_sentence = await fetch("/api/transcribe", {
+           method: "POST",
+           body: formData,
+          })
+         const json_talk_sentence = await res_talk_sentence.json()
+         const talk_sentence = json_talk_sentence.text; // 話した言葉が格納される
+         
+         // GPT
+         formData.append("question", talk_sentence)
+         const gpt_answer = await fetch("/api/callgpt", {
+           method: "POST",
+           body: formData,
+          })
+          const json_gpt_answer = await gpt_answer.json()
+          const text_gpt_answer = json_gpt_answer.answer;
+          console.log("GPTの回答:" + text_gpt_answer)
+
+          // voicevox
+          formData.append("talk_text", text_gpt_answer)
+          const res_output_filepath = await fetch("/api/callvoicevox", {
+            method: "POST",
+            body: formData,
+           })
+          const json_res_output_filepath = await res_output_filepath.json()
+          const output_filepath = json_res_output_filepath.output_filepath; // 出力先ファイルのパス
+          var audioElem;
+          audioElem = new Audio();
+          console.log(output_filepath)
+          audioElem.src = "."+output_filepath;
+          console.log(audioElem.src)
+          audioElem.play();
+       } catch (err) {
+         console.log("ERROR_OCCERD:" + err)
+       }
+
+     },
+   })
+   myvad.start()
+ } catch (e) {
+   console.error("Failed:", e)
+ }
+</script>
+<style>
+  body {
+   background-color: lime;
+  }
+</style>

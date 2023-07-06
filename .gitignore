@@ -1,0 +1,5 @@
+keys.py
+static/voicevox_output
+uploads
+__pycache__
+.vscode
